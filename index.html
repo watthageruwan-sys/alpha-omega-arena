@@ -4,11 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ALPHA vs OMEGA | Battle Arena</title>
-    
-    <!-- Firebase App (Core SDK) -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <!-- Firebase Realtime Database -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
     <style>
         :root {
@@ -300,8 +295,8 @@
     </div>
 
     <div class="status-banner" id="statusBanner">
-        <div class="status-title" id="statusTitle">🔥 Connecting to Live Cloud...</div>
-        <div class="status-msg" id="statusMsg">Syncing scores across devices in real-time.</div>
+        <div class="status-title" id="statusTitle">🔥 Battle Arena Ready</div>
+        <div class="status-msg" id="statusMsg">Scores update instantly when modified by the admin.</div>
     </div>
 
     <div class="progress-section">
@@ -384,43 +379,15 @@
 </div>
 
 <script>
-    // ----------------------------------------------------
-    // STEP TO PLUG IN YOUR FIREBASE DATABASE:
-    // 1. Go to console.firebase.google.com (it's free)
-    // 2. Create a project and turn on "Realtime Database" (Test Mode)
-    // 3. Go to Project Settings -> General -> Add Web App
-    // 4. Copy your config object and paste it below replacing this placeholder object:
-    // ----------------------------------------------------
-    const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-        databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-        projectId: "YOUR_PROJECT_ID",
-        storageBucket: "YOUR_PROJECT_ID.appspot.com",
-        messagingSenderId: "YOUR_MSG_ID",
-        appId: "YOUR_APP_ID"
+    let scores = {
+        alpha: parseInt(localStorage.getItem('arena_alpha')) || 0,
+        omega: parseInt(localStorage.getItem('arena_omega')) || 0
     };
 
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    let scores = { alpha: 0, omega: 0 };
     let isAdminUnlocked = false;
     const secretPasscode = "royal123";
 
-    // Real-time listener: whenever database changes anywhere, update phone/PC instantly!
-    db.ref('arena/scores').on('value', (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-            scores.alpha = data.alpha || 0;
-            scores.omega = data.omega || 0;
-        } else {
-            // Initialize if empty
-            db.ref('arena/scores').set({ alpha: 0, omega: 0 });
-        }
-        updateUI();
-    });
+    updateUI();
 
     function toggleAdmin() {
         if (!isAdminUnlocked) {
@@ -444,11 +411,14 @@
     function changePoints(team, pts) {
         if (!isAdminUnlocked) return;
         
-        let newScore = scores[team] + pts;
-        if (newScore < 0) newScore = 0;
+        scores[team] += pts;
+        if (scores[team] < 0) scores[team] = 0;
 
-        // Push update directly to Firebase cloud database
-        db.ref('arena/scores/' + team).set(newScore);
+        // Save to browser memory
+        localStorage.setItem('arena_alpha', scores.alpha);
+        localStorage.setItem('arena_omega', scores.omega);
+
+        updateUI();
     }
 
     function updateUI() {
