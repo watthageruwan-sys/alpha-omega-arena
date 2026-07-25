@@ -276,7 +276,7 @@
 <div class="arena-container">
     <div class="header">
         <button class="admin-toggle-btn" onclick="toggleAdmin()">🔒 Admin</button>
-        <div style="font-size: 0.7rem; color: var(--accent-gold); font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;">Live Cloud Arena</div>
+        <div style="font-size: 0.7rem; color: var(--accent-gold); font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;">Battle Arena</div>
         <h1>ALPHA vs OMEGA</h1>
         <div class="sub-title">Kuruduwatta Royal College</div>
     </div>
@@ -295,8 +295,8 @@
     </div>
 
     <div class="status-banner" id="statusBanner">
-        <div class="status-title" id="statusTitle">🔥 Connected to Cloud</div>
-        <div class="status-msg" id="statusMsg">Scores sync automatically across all devices in real-time.</div>
+        <div class="status-title" id="statusTitle">🔥 Scoreboard Active</div>
+        <div class="status-msg" id="statusMsg">Scores save locally and persist perfectly across refreshes.</div>
     </div>
 
     <div class="progress-section">
@@ -379,36 +379,25 @@
 </div>
 
 <script>
-    // Using a public shared jsonbin store for instant cross-device updates
-    const BIN_URL = "https://api.jsonbin.io/v3/b/6656722fe41b4d34e4f51486"; 
-    // (Using public master key / read endpoint setup)
-
     let scores = { alpha: 0, omega: 0 };
     let isAdminUnlocked = false;
     const secretPasscode = "royal123";
 
-    fetchScores();
-    setInterval(fetchScores, 3000);
-
-    function fetchScores() {
-        fetch(BIN_URL + "/latest", {
-            headers: { 'X-Access-Key': '$2a$10$Wq5F5t1b3h8g5vj6k1L9uO9e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7' } // Public generic reader or fallback mock
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data && data.record) {
-                scores.alpha = data.record.alpha || 0;
-                scores.omega = data.record.omega || 0;
-                updateUI();
-            }
-        })
-        .catch(err => {
-            // Fallback to local storage if network blips
-            scores.alpha = parseInt(localStorage.getItem('fallback_a')) || 0;
-            scores.omega = parseInt(localStorage.getItem('fallback_o')) || 0;
-            updateUI();
-        });
+    // Load scores from URL hash or fallback to localStorage
+    function loadScores() {
+        const hash = window.location.hash.substring(1);
+        if (hash.includes('a=') && hash.includes('o=')) {
+            const params = new URLSearchParams(hash);
+            scores.alpha = parseInt(params.get('a')) || 0;
+            scores.omega = parseInt(params.get('o')) || 0;
+        } else {
+            scores.alpha = parseInt(localStorage.getItem('arena_a')) || 0;
+            scores.omega = parseInt(localStorage.getItem('arena_o')) || 0;
+        }
+        updateUI();
     }
+
+    loadScores();
 
     function toggleAdmin() {
         if (!isAdminUnlocked) {
@@ -435,19 +424,13 @@
         scores[team] += pts;
         if (scores[team] < 0) scores[team] = 0;
 
-        localStorage.setItem('fallback_a', scores.alpha);
-        localStorage.setItem('fallback_o', scores.omega);
-        updateUI();
+        // Save locally and update URL hash so it can be shared instantly across devices
+        localStorage.setItem('arena_a', scores.alpha);
+        localStorage.setItem('arena_o', scores.omega);
+        
+        window.location.hash = `a=${scores.alpha}&o=${scores.omega}`;
 
-        // Push update
-        fetch(BIN_URL, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Access-Key': '$2a$10$Wq5F5t1b3h8g5vj6k1L9uO9e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7'
-            },
-            body: JSON.stringify(scores)
-        }).catch(err => console.log("Cloud sync retry queued"));
+        updateUI();
     }
 
     function updateUI() {
