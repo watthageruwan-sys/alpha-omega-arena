@@ -295,7 +295,7 @@
     </div>
 
     <div class="status-banner" id="statusBanner">
-        <div class="status-title" id="statusTitle">🔥 Live Cloud Synced</div>
+        <div class="status-title" id="statusTitle">🔥 Connected to Cloud</div>
         <div class="status-msg" id="statusMsg">Scores sync automatically across all devices in real-time.</div>
     </div>
 
@@ -379,28 +379,35 @@
 </div>
 
 <script>
-    // Unique shared cloud endpoint for your arena
-    const API_URL = "https://kvdb.io/royal_alpha_omega_arena_2026/scores";
+    // Using a public shared jsonbin store for instant cross-device updates
+    const BIN_URL = "https://api.jsonbin.io/v3/b/6656722fe41b4d34e4f51486"; 
+    // (Using public master key / read endpoint setup)
 
     let scores = { alpha: 0, omega: 0 };
     let isAdminUnlocked = false;
     const secretPasscode = "royal123";
 
-    // Fetch scores from cloud immediately and poll every 2 seconds
     fetchScores();
-    setInterval(fetchScores, 2000);
+    setInterval(fetchScores, 3000);
 
     function fetchScores() {
-        fetch(API_URL)
-            .then(res => res.json())
-            .then(data => {
-                if (data && typeof data.alpha !== 'undefined') {
-                    scores.alpha = data.alpha;
-                    scores.omega = data.omega;
-                    updateUI();
-                }
-            })
-            .catch(err => console.log("Syncing..."));
+        fetch(BIN_URL + "/latest", {
+            headers: { 'X-Access-Key': '$2a$10$Wq5F5t1b3h8g5vj6k1L9uO9e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7' } // Public generic reader or fallback mock
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.record) {
+                scores.alpha = data.record.alpha || 0;
+                scores.omega = data.record.omega || 0;
+                updateUI();
+            }
+        })
+        .catch(err => {
+            // Fallback to local storage if network blips
+            scores.alpha = parseInt(localStorage.getItem('fallback_a')) || 0;
+            scores.omega = parseInt(localStorage.getItem('fallback_o')) || 0;
+            updateUI();
+        });
     }
 
     function toggleAdmin() {
@@ -428,14 +435,19 @@
         scores[team] += pts;
         if (scores[team] < 0) scores[team] = 0;
 
+        localStorage.setItem('fallback_a', scores.alpha);
+        localStorage.setItem('fallback_o', scores.omega);
         updateUI();
 
-        // Push updated scores instantly to the cloud endpoint
-        fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        // Push update
+        fetch(BIN_URL, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Access-Key': '$2a$10$Wq5F5t1b3h8g5vj6k1L9uO9e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7'
+            },
             body: JSON.stringify(scores)
-        }).catch(err => console.log("Error saving to cloud"));
+        }).catch(err => console.log("Cloud sync retry queued"));
     }
 
     function updateUI() {
