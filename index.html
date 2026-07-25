@@ -276,7 +276,7 @@
 <div class="arena-container">
     <div class="header">
         <button class="admin-toggle-btn" onclick="toggleAdmin()">🔒 Admin</button>
-        <div style="font-size: 0.7rem; color: var(--accent-gold); font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;">Live Battle Arena</div>
+        <div style="font-size: 0.7rem; color: var(--accent-gold); font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;">Live Cloud Arena</div>
         <h1>ALPHA vs OMEGA</h1>
         <div class="sub-title">Kuruduwatta Royal College</div>
     </div>
@@ -295,8 +295,8 @@
     </div>
 
     <div class="status-banner" id="statusBanner">
-        <div class="status-title" id="statusTitle">🔥 Battle Arena Ready</div>
-        <div class="status-msg" id="statusMsg">Scores update instantly when modified by the admin.</div>
+        <div class="status-title" id="statusTitle">🔥 Live Cloud Synced</div>
+        <div class="status-msg" id="statusMsg">Scores sync automatically across all devices in real-time.</div>
     </div>
 
     <div class="progress-section">
@@ -379,15 +379,29 @@
 </div>
 
 <script>
-    let scores = {
-        alpha: parseInt(localStorage.getItem('arena_alpha')) || 0,
-        omega: parseInt(localStorage.getItem('arena_omega')) || 0
-    };
+    // Unique shared cloud endpoint for your arena
+    const API_URL = "https://kvdb.io/royal_alpha_omega_arena_2026/scores";
 
+    let scores = { alpha: 0, omega: 0 };
     let isAdminUnlocked = false;
     const secretPasscode = "royal123";
 
-    updateUI();
+    // Fetch scores from cloud immediately and poll every 2 seconds
+    fetchScores();
+    setInterval(fetchScores, 2000);
+
+    function fetchScores() {
+        fetch(API_URL)
+            .then(res => res.json())
+            .then(data => {
+                if (data && typeof data.alpha !== 'undefined') {
+                    scores.alpha = data.alpha;
+                    scores.omega = data.omega;
+                    updateUI();
+                }
+            })
+            .catch(err => console.log("Syncing..."));
+    }
 
     function toggleAdmin() {
         if (!isAdminUnlocked) {
@@ -414,11 +428,14 @@
         scores[team] += pts;
         if (scores[team] < 0) scores[team] = 0;
 
-        // Save to browser memory
-        localStorage.setItem('arena_alpha', scores.alpha);
-        localStorage.setItem('arena_omega', scores.omega);
-
         updateUI();
+
+        // Push updated scores instantly to the cloud endpoint
+        fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(scores)
+        }).catch(err => console.log("Error saving to cloud"));
     }
 
     function updateUI() {
